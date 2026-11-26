@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타임머신 투자 게임</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: 교실용 게임, 신문 호외를 넘기며 시대를 건너는 긴장감
+IDEA: 그 시대의 신문 1면 + 증권사 시세판 (한국식: 상승 빨강, 하락 파랑)
+PICTURE: 신문 1면 카드와 내 자산 그래프가 첫 화면을 채움
+COLOUR and TYPE: 신문지 흰색/먹색, 상승 빨강 #e0262f, 하락 파랑 #1f5fd6 · Black Han Sans 헤드라인 + Noto Sans KR
+LAYOUT: 상단 상태바 → 신문+그래프 2단 → 자산 배분표 → 결과/엔딩
+*/
+:root{color-scheme:light dark;--bg:light-dark(#eceae4,#121416);--paper:light-dark(#ffffff,#1c1f23);--ink:light-dark(#141414,#ecebe7);--mute:light-dark(#5d5b55,#a3a29c);--line:light-dark(#d6d3ca,#33373d);--up:light-dark(#d81f2a,#ff5a63);--dn:light-dark(#1f5fd6,#5b93ff);--soft:light-dark(#f5f3ee,#24282d)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1180px;margin:0 auto;padding:16px max(3vw,12px) 48px}
+h1,h2,.hl{font-family:"Black Han Sans","Noto Sans KR",sans-serif;font-weight:400;line-height:1.1;text-wrap:balance;margin:0}
+.top{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:end;justify-content:space-between;padding:10px 0 14px;border-bottom:3px solid var(--ink)}
+.top h1{font-size:clamp(26px,4vw,38px)}
+.top small{display:block;color:var(--mute);font-size:14px}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.stat b{display:block;font-size:clamp(20px,2.6vw,28px);font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--mute)}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;margin-top:16px}
+@media(max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:18px}
+.paper{position:relative;border-top:6px double var(--ink)}
+.mast{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mute);border-bottom:1px solid var(--ink);padding-bottom:6px;margin-bottom:12px}
+.mast b{color:var(--ink);font-size:15px}
+.extra{display:inline-block;background:var(--up);color:#fff;font-family:"Black Han Sans";padding:2px 10px;font-size:15px;margin-bottom:8px}
+.paper .hl{font-size:clamp(26px,3.6vw,40px);margin-bottom:12px}
+.paper p{margin:0 0 10px;color:var(--ink)}
+.life{margin-top:12px;padding:10px 12px;background:var(--soft);border-left:4px solid var(--ink);font-size:15px}
+.life .amt{font-weight:900;white-space:nowrap}
+.pos{color:var(--up)}.neg{color:var(--dn)}
+.fig{position:relative;min-height:300px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-bottom:6px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px}
+h2{font-size:24px;margin-bottom:4px}
+.hint{color:var(--mute);font-size:14px;margin:0 0 12px}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button{font:inherit;cursor:pointer;min-height:44px;border-radius:6px;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);padding:8px 14px;font-weight:700}
+button:focus-visible,input:focus-visible{outline:3px solid var(--dn);outline-offset:2px}
+button.go{background:var(--ink);color:var(--paper);font-size:18px;padding:12px 22px;width:100%}
+button.go:disabled{opacity:.4;cursor:not-allowed}
+.rows{display:grid;gap:4px}
+.row{display:grid;grid-template-columns:minmax(0,1.3fr) 84px minmax(0,1.4fr) 112px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.row .nm b{display:block;font-size:16px}.row .nm span{font-size:13px;color:var(--mute)}
+.stars{font-size:12px;color:var(--mute);line-height:1.35;white-space:nowrap}
+.stars em{font-style:normal;color:var(--ink);letter-spacing:-1px}
+.row input{width:100%;accent-color:var(--ink);height:28px}
+.row .v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row .v b{display:block;font-size:18px}.row .v span{font-size:13px;color:var(--mute)}
+@media(max-width:600px){.row{grid-template-columns:minmax(0,1fr) 100px;gap:4px 10px}.row .stars{grid-column:1}.row input{grid-column:1/-1;grid-row:3}.row .v{grid-row:1;grid-column:2}}
+.cash{display:flex;justify-content:space-between;gap:10px;padding:12px 0;font-weight:700;flex-wrap:wrap}
+.warn{font-size:14px;color:var(--up);min-height:1.4em;margin:0 0 10px}
+.res .r{display:grid;grid-template-columns:minmax(0,9em) minmax(0,1fr) 92px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:15px}
+.bar{height:16px;position:relative;background:var(--soft);border-radius:3px}
+.bar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.bar::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px solid var(--mute)}
+.res .r .p{text-align:right;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums}
+.big{font-size:clamp(28px,4vw,44px);font-family:"Black Han Sans";white-space:nowrap}
+.fact{font-size:14px;color:var(--mute);margin:8px 0 14px}
+.note{background:var(--soft);border-radius:6px;padding:14px 16px;margin:14px 0}
+.note b{display:block;font-size:17px;margin-bottom:4px}
+.end .cmp{display:grid;gap:8px;margin:12px 0 18px}
+.end .cmp div{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:15px}
+.end .cmp .bar::after{display:none}
+.end .cmp span:last-child{white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums}
+.end ol{padding-left:1.3em}.end li{margin-bottom:6px}
+.intro label{display:block;font-weight:700;margin-bottom:6px}
+.intro .f{display:flex;gap:10px;flex-wrap:wrap}
+.intro input,.board textarea{font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--ink);border-radius:6px;background:var(--paper);color:var(--ink);min-height:44px}
+.intro input{flex:1 1 220px}
+.blindOpt{display:flex!important;gap:10px;align-items:center;font-weight:400!important;margin-top:12px;min-height:44px}.blindOpt.hide{display:none!important}.blindOpt input{flex:none;width:22px;height:22px;min-height:0}
+.era{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}.era b{font-size:16px}.era small{grid-column:1;color:var(--mute);font-size:14px}.era .p{grid-row:1/3;grid-column:2;align-self:center;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums}
+.codebox{border:3px solid var(--ink);border-radius:8px;padding:16px;margin:10px 0 18px;display:grid;gap:4px;text-align:center;background:var(--soft)}
+.codebox .cd{font-family:"Black Han Sans";font-size:clamp(30px,6vw,46px);letter-spacing:2px;color:var(--up)}
+.codebox small{color:var(--mute)}
+.board textarea{width:100%;min-height:110px;margin:8px 0}
+.board table{width:100%;border-collapse:collapse;margin-top:12px;font-size:15px}
+.board th,.board td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+.board td.n,.board th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.board tr.top1 td{font-weight:900}
+.board .bad{color:var(--up);font-size:14px;margin-top:8px}
+.medal{display:inline-block;min-width:1.6em}
+.src{font-size:13px;color:var(--mute);margin-top:22px}
+.hide{display:none!important}
+@media(prefers-reduced-motion:no-preference){.flip{animation:flip .5s ease-out}@keyframes flip{from{opacity:0;transform:translateY(10px) rotate(-.6deg)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><h1>타임머신 투자 게임</h1><small id="subT">1997 외환위기부터 2022 금리 인상까지, 실제 역사를 투자하며 건너가기</small></div>
+    <div class="stats">
+      <div class="stat"><span>지금</span><b id="sYear">1997년</b></div>
+      <div class="stat"><span>나이</span><b id="sAge">25세</b></div>
+      <div class="stat"><span>총자산</span><b id="sTotal">0원</b></div>
+      <div class="stat"><span>시대</span><b id="sTurn">1 / 11</b></div>
+    </div>
+  </header>
+
+  <section class="grid">
+    <article class="card paper flip" id="news"></article>
+    <div class="card">
+      <div class="legend"><span><i style="background:var(--up)"></i>내 자산</span><span><i style="background:var(--mute)"></i>예금만 했다면</span><span><i style="background:var(--dn)"></i>코스피 지수</span></div>
+      <div class="fig"><svg id="chart" role="img" aria-label="내 자산 변화 그래프"></svg></div>
+    </div>
+  </section>
+
+  <section class="card intro" id="intro" style="margin-top:16px">
+    <h2>투자자 등록</h2>
+    <p class="hint">이름(또는 번호와 이름)을 입력하고 시작하세요. 마지막에 받는 <b>결과 코드</b>를 선생님께 알려 주면 학급 순위가 매겨져요.</p>
+    <label for="nm">이름</label>
+    <div class="f"><input id="nm" maxlength="12" placeholder="예: 12번 김민수" autocomplete="off"><button class="go" id="startBtn" style="width:auto">게임 시작 ▶</button></div>
+    <label class="blindOpt hide" id="blindOpt"><input type="checkbox" id="blindChk" checked> 블라인드 모드: 연도와 사건 이름을 숨기고 마지막에 공개해요</label>
+    <p class="warn" id="nmWarn"></p>
+  </section>
+
+  <section class="card hide" id="alloc" style="margin-top:16px">
+    <h2>내 돈을 어디에 둘까?</h2>
+    <p class="hint">막대를 움직여 비율을 정하세요. 남은 비율은 현금(이자 0%)으로 남아요. ★는 수익성·안전성·유동성이에요.</p>
+    <div class="presets">
+      <button data-p="safe">안정형</button><button data-p="bal">골고루</button><button data-p="agg">공격형</button><button data-p="zero">초기화</button>
+    </div>
+    <div class="rows" id="rows"></div>
+    <div class="cash"><span>현금으로 남김</span><span id="cashV"></span></div>
+    <p class="warn" id="warn"></p>
+    <button class="go" id="go">이 선택으로 시간 여행 ▶</button>
+  </section>
+
+  <section class="card res hide flip" id="result" style="margin-top:16px"></section>
+  <section class="card end hide flip" id="end" style="margin-top:16px"></section>
+
+  <section class="card board" id="board" style="margin-top:16px">
+    <h2>🏆 학급 순위판</h2>
+    <p class="hint">이 기기에서 끝낸 게임은 자동으로 올라가요. 다른 기기에서 한 학생들의 결과는 아래 칸에 <b>이름 결과코드</b>를 한 줄에 하나씩 붙여 넣으세요. 예: 김민수 1F4K-1X7</p>
+    <textarea id="codes" aria-label="결과 코드 입력" placeholder="김민수 1F4K-1X7&#10;이서연 2A9Q-2B3"></textarea>
+    <div class="presets"><button id="rankBtn">순위 매기기</button><button id="clearBtn">순위판 비우기</button></div>
+    <div id="global" class="hide" style="margin-bottom:22px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:20px">🌏 전체 순위</h2><button id="gRefresh">새로고침</button></div>
+      <div id="gOut"><p class="hint">불러오는 중…</p></div>
+    </div>
+    <h2 style="font-size:20px" id="localTitle">이 기기·코드 순위</h2>
+    <div id="boardOut"><p class="hint">아직 기록이 없어요.</p></div>
+  </section>
+
+  <p class="src">코스피 지수·환율·기준금리는 당시 실제 값을 반올림했고, 예금·채권·금·코스닥 수익률은 그 시기 흐름을 단순화한 근사치예요. 실제 투자 권유가 아닌 수업용 시뮬레이션입니다.</p>
+</div>
+
+<script>
+{
+const A=[
+ {n:'정기예금',d:'은행에 맡기고 이자 받기',s:[1,5,4]},
+ {n:'국공채',d:'나라·기관에 빌려주고 이자 받기',s:[2,4,3]},
+ {n:'우량주 (코스피)',d:'큰 기업들의 주식 묶음',s:[4,2,4]},
+ {n:'벤처·성장주 (코스닥)',d:'작고 빠르게 크는 기업 주식',s:[5,1,3]},
+ {n:'달러',d:'원화를 달러로 바꿔 보관',s:[2,3,4]},
+ {n:'금',d:'대표적인 실물 안전자산',s:[2,3,2]}
+];
+const T=[
+ {nm:'외환위기 전야',b:{p:'첫 번째 시대 · 약 6개월',h:'대기업 부도 위기… 이웃 나라 통화 가치 폭락, 아시아 금융 불안 확산',s:'정부는 "우리 경제의 기초 체력은 튼튼하다"고 말하지만, 외국 자본이 조금씩 빠져나가고 있다.',c:'외국 자본이 빠져나가며 원화 가치가 급락했어요(환율 상승). 원화로 따지면 달러와 금의 가치가 크게 올라 주식 손실을 메워 주었어요. 여러 자산에 나눠 담는 분산 투자가 필요한 이유예요.'},p:'1997년 7월 ~ 1997년 12월',y:1997,age:25,ky:750,h:'기아 부도 위기… 태국 바트화 폭락, 동남아 금융 불안 확산',sub:'정부는 "한국 경제의 기초 체력은 튼튼하다"고 말하지만, 외국 자본이 조금씩 빠져나가고 있다.',inc:1000,ev:{t:'입사 1년 차! 첫 종잣돈을 모았어요.',a:0},r:[6,-6,-50,-45,60,40],fact:'코스피 약 750 → 376 · 원/달러 환율 887원 → 1,415원 (12월 23일 한때 1,962원)',c:['환율 상승 → 달러·금 가치 상승','외국 자본이 빠져나가며 원화 가치가 급락했어요(환율 상승). 원화로 따지면 달러와 금의 가치가 크게 올라 주식 손실을 메워 주었어요. 여러 자산에 나눠 담는 분산 투자가 필요한 이유예요.']},
+ {nm:'IMF 외환위기',b:{p:'두 번째 시대 · 약 6개월',h:'국제기구에 긴급 구제금융 신청… 시장 금리 연 20% 넘어',s:'기업 연쇄 부도와 대량 실직이 이어진다. 사람들은 "나라가 망하는 것 아니냐"며 걱정한다.',c:'돈이 귀해지자 금리가 치솟았어요. 예금 이자는 커졌지만 기업은 빚 부담이 늘어 주가가 더 떨어졌어요. 금리와 주가는 대체로 반대로 움직여요.'},p:'1998년 1월 ~ 1998년 6월',y:1998,age:25,ky:376,h:'IMF 구제금융 신청… 시장 금리 연 20% 넘어',sub:'국민들은 장롱 속 금을 꺼내 "금 모으기 운동"에 나섰다. 기업 연쇄 부도와 대량 실직이 이어진다.',inc:300,ev:{t:'회사 구조조정으로 상여금이 사라졌어요.',a:-150},r:[10,2,-26,-30,-3,-8],fact:'코스피 376 → 280 (1998년 6월 16일 최저) · 시장 금리 연 20%대',c:['금리가 오르면?','돈이 귀해지자 금리가 치솟았어요. 예금 이자는 커졌지만 기업은 빚 부담이 늘어 주가가 더 떨어졌어요. 금리와 주가는 대체로 반대로 움직여요.']},
+ {nm:'구조조정과 회복',b:{p:'세 번째 시대 · 약 1년 6개월',h:'"바닥은 어디인가" 주가 지수 300 붕괴… 구조조정 속 금리는 내려가기 시작',s:'주식은 "휴지 조각"이 됐다는 말이 돈다. 정부는 벤처 기업을 키우겠다고 한다.',c:'구조조정과 금리 하락이 이어지며 주가가 1년 반 만에 약 3.7배가 됐어요. 바닥에서 겁먹고 판 사람과 버틴 사람의 결과가 크게 갈렸어요. 하지만 바닥은 지나고 나서야 알 수 있어요.'},p:'1998년 7월 ~ 1999년 12월',y:1998.5,age:26,ky:280,h:'"바닥은 어디인가" 코스피 300 붕괴… 구조조정 속 금리는 내려가기 시작',sub:'주식은 "휴지 조각"이 됐다는 말이 돈다. 정부는 벤처 기업과 코스닥 시장을 키우겠다고 한다.',inc:900,ev:null,r:[14,20,267,300,-17,-15],fact:'코스피 280 → 1,028 · 환율 약 1,370원 → 1,140원',c:['공포 속의 기회','구조조정과 금리 하락이 이어지며 주가가 1년 반 만에 약 3.7배가 됐어요. 바닥에서 겁먹고 판 사람과 버틴 사람의 결과가 크게 갈렸어요. 하지만 바닥은 지나고 나서야 알 수 있어요.']},
+ {nm:'닷컴 버블 붕괴',b:{p:'네 번째 시대 · 약 1년',h:'"인터넷이 세상을 바꾼다" 벤처 열풍… 신생 기업 사무실 구하기 전쟁',s:'회사 이름에 "인터넷"만 붙어도 주가가 뛴다. 친구는 벤처주로 몇 배를 벌었다고 자랑한다.',c:'실제 이익보다 기대만으로 주가가 오르면 거품이 생겨요. 미국 기술주가 폭락하자 벤처·성장주는 1년 만에 약 80% 떨어졌어요. 높은 수익성 뒤에는 높은 위험이 따라와요.'},p:'2000년 1월 ~ 2000년 12월',y:2000,age:28,ky:1059,h:'"인터넷이 세상을 바꾼다" 벤처 열풍… 테헤란밸리 사무실 구하기 전쟁',sub:'회사 이름에 \'닷컴\'만 붙어도 주가가 뛴다. 친구는 벤처주로 몇 배를 벌었다고 자랑한다.',inc:600,ev:null,r:[7,9,-52,-79,11,6],fact:'코스피 1,059 → 505 · 코스닥 시장 약 80% 하락',c:['거품(버블)','실제 이익보다 기대만으로 주가가 오르면 거품이 생겨요. 2000년 3월 미국 나스닥 폭락과 함께 코스닥은 1년 만에 약 80% 떨어졌어요. 높은 수익성 뒤에는 높은 위험이 따라와요.']},
+ {nm:'2000년대 성장기',b:{p:'다섯 번째 시대 · 7년',h:'벤처 거품 꺼진 뒤 침체… 이웃 대국의 고속 성장과 수출 호황에 기대',s:'이번 기간은 7년이에요. 오래 묻어 둘 자산을 골라 보세요.',c:'7년 동안 주가 지수는 약 3.8배가 됐어요. 예금도 이자에 이자가 붙는 복리로 꾸준히 불어났어요. 결혼 자금처럼 꼭 써야 할 돈은 바로 꺼낼 수 있어야 해요(유동성).'},p:'2001년 1월 ~ 2007년 12월 (7년)',y:2001,age:29,ky:505,h:'벤처 거품 꺼진 뒤 침체… 중국 성장과 수출 호황에 기대',sub:'이번 기간은 7년이에요. 오래 묻어 둘 자산을 골라 보세요.',inc:4200,ev:{t:'결혼하고 전셋집을 구했어요.',a:-2500},r:[32,38,276,34,-26,125],fact:'코스피 505 → 1,897 (2007년 사상 첫 2,000 돌파) · 환율 1,265원 → 936원',c:['장기 투자와 복리','7년 동안 코스피는 약 3.8배가 됐어요. 예금도 이자에 이자가 붙는 복리로 꾸준히 불어났어요. 결혼 자금처럼 꼭 써야 할 돈은 바로 꺼낼 수 있어야 해요(유동성).']},
+ {nm:'글로벌 금융위기',b:{p:'여섯 번째 시대 · 약 10개월',h:'미국 집값 하락… 저신용자 주택 대출 부실 우려',s:'"미국만의 문제"라는 의견과 "세계로 번질 것"이라는 경고가 맞선다.',c:'미국 주택 대출 부실이 대형 투자은행 파산으로 번지며 세계 금융위기가 됐어요. 외국인이 한국 주식을 팔고 달러를 사 가자 환율이 치솟았어요. 위기 때 달러·금 같은 안전자산이 다시 빛났어요.'},p:'2008년 1월 ~ 2008년 10월',y:2008,age:36,ky:1897,h:'미국 집값 하락… 서브프라임 대출 부실 우려',sub:'"미국만의 문제"라는 의견과 "세계로 번질 것"이라는 경고가 맞선다.',inc:500,ev:null,r:[4,2,-51,-63,52,33],fact:'코스피 1,897 → 939 (10월 24일) · 환율 1,400원대 돌파',c:['세계는 연결되어 있다','미국 주택 대출 부실이 리먼 브러더스 파산으로 번지며 세계 금융위기가 됐어요. 외국인이 한국 주식을 팔고 달러를 사 가자 환율이 치솟았어요. 위기 때 달러·금 같은 안전자산이 다시 빛났어요.']},
+ {nm:'금융위기 회복',b:{p:'일곱 번째 시대 · 약 1년 2개월',h:'미국 대형 투자은행 파산… 주가 지수 1,000 붕괴, 환율 1,400원대',s:'각국 중앙은행이 금리를 내리고 돈을 풀기 시작했다. 지금 팔아야 할까, 사야 할까?',c:'경기를 살리려고 각국이 금리를 내리고 돈을 풀었어요. 주가는 1년여 만에 약 80% 회복했어요. 정부와 중앙은행의 정책도 시장에 큰 영향을 줘요.'},p:'2008년 11월 ~ 2009년 12월',y:2008.8,age:36,ky:939,h:'리먼 브러더스 파산… 코스피 1,000 붕괴, 환율 1,400원대',sub:'각국 중앙은행이 금리를 내리고 돈을 풀기 시작했다. 지금 팔아야 할까, 사야 할까?',inc:700,ev:null,r:[4,8,79,96,-18,22],fact:'코스피 939 → 1,683 · 환율 약 1,430원 → 1,164원',c:['중앙은행의 금리 인하','경기를 살리려고 각국이 금리를 내리고 돈을 풀었어요. 주가는 1년여 만에 약 80% 회복했어요. 정부와 중앙은행의 정책도 시장에 큰 영향을 줘요.']},
+ {nm:'저성장·저금리 10년',b:{p:'여덟 번째 시대 · 10년',h:'위기 탈출, 이제는 저성장·저금리 시대',s:'앞으로 10년이에요. 예금 금리는 2~3%대로 내려왔다.',c:'10년간 주가 지수는 1,700~2,500 사이를 오가며 크게 오르지 못했어요("박스피"). 금리가 낮아 예금 수익도 작았어요. 어떤 자산도 늘 이기지는 않아요.'},p:'2010년 1월 ~ 2019년 12월 (10년)',y:2010,age:38,ky:1683,h:'위기 탈출, 이제는 저성장·저금리 시대',sub:'앞으로 10년이에요. 예금 금리는 2~3%대로 내려왔다.',inc:6000,ev:{t:'내 집 마련에 보탰어요.',a:-3000},r:[25,32,31,31,-1,37],fact:'코스피 1,683 → 2,198 · 기준금리 1%대까지 하락',c:['박스피와 저금리','10년간 코스피는 1,700~2,500 사이를 오가며 크게 오르지 못해 "박스피"라 불렸어요. 금리가 낮아 예금 수익도 작았어요. 어떤 자산도 늘 이기지는 않아요.']},
+ {nm:'코로나19 폭락',b:{p:'아홉 번째 시대 · 약 3개월',h:'이웃 나라에서 원인 불명 폐렴… 국내에서도 첫 환자 발생',s:'전문가들은 "곧 잠잠해질 것"이라고도, "심상치 않다"고도 한다.',c:'전염병은 아무도 예측하지 못했어요. 석 달도 안 돼 주가 지수가 3분의 1 넘게 떨어졌어요. 이런 때를 대비해 바로 쓸 수 있는 비상금(유동성)을 남겨 두어야 해요.'},p:'2020년 1월 ~ 2020년 3월',y:2020,age:48,ky:2198,h:'중국 우한에서 원인 불명 폐렴… 국내 첫 확진자 발생',sub:'전문가들은 "곧 잠잠해질 것"이라고도, "심상치 않다"고도 한다.',inc:100,ev:null,r:[0.3,1,-34,-36,11,8],fact:'코스피 2,198 → 1,458 (3월 19일) · 19년 만에 서킷브레이커 발동',c:['예측할 수 없는 위험','전염병은 아무도 예측하지 못했어요. 두 달 만에 코스피가 3분의 1 넘게 떨어졌어요. 이런 때를 대비해 바로 쓸 수 있는 비상금(유동성)을 남겨 두어야 해요.']},
+ {nm:'동학개미 랠리',b:{p:'열 번째 시대 · 약 1년 3개월',h:'주가 지수 1,457까지 추락… 중앙은행, 기준금리 긴급 인하',s:'개인 투자자들이 너도나도 주식 계좌를 만들기 시작했다.',c:'금리가 사상 최저로 내려가고 돈이 풀리자 주식으로 돈이 몰렸어요. 주가 지수는 1년여 만에 2배 넘게 올랐어요. 하지만 빚을 내 투자한 사람은 위험도 커졌어요.'},p:'2020년 3월 ~ 2021년 6월',y:2020.25,age:48,ky:1458,h:'코스피 1,457까지 추락… 한국은행, 기준금리 긴급 인하',sub:'"동학개미"라 불리는 개인 투자자들이 주식 계좌를 만들기 시작했다.',inc:800,ev:null,r:[1,-1,126,136,-12,5],fact:'코스피 1,458 → 3,297 · 기준금리 사상 최저 0.5%',c:['저금리와 유동성','금리가 사상 최저로 내려가고 돈이 풀리자 주식으로 돈이 몰렸어요. 코스피는 1년여 만에 2배 넘게 올랐어요. 하지만 빚을 내 투자한 사람은 위험도 커졌어요.']},
+ {nm:'금리 인상기',b:{p:'열한 번째 시대 · 약 1년 6개월',h:'주가 지수 사상 첫 3,000 시대… 그런데 물가가 심상치 않다',s:'미국 물가 상승률이 수십 년 만에 최고. 중앙은행도 금리 인상을 예고했다.',c:'물가를 잡기 위해 중앙은행은 기준금리를 연 0.5%에서 3.25%까지 올렸어요. 주가와 채권 가격이 함께 떨어지고 예금의 매력이 다시 커졌어요.'},p:'2021년 7월 ~ 2022년 12월',y:2021.5,age:49,ky:3297,h:'코스피 사상 첫 3,000 시대… 그런데 물가가 심상치 않다',sub:'미국 물가 상승률이 수십 년 만에 최고. 한국은행도 금리 인상을 예고했다.',inc:900,ev:{t:'부모님 병원비를 보태 드렸어요.',a:-500},r:[4,-9,-32,-33,12,13],fact:'코스피 3,297 → 2,236 · 기준금리 0.5% → 3.25%',c:['금리 인상의 충격','물가를 잡기 위해 한국은행은 기준금리를 연 0.5%에서 3.25%까지 올렸어요. 주가와 채권 가격이 함께 떨어지고 예금의 매력이 다시 커졌어요.']}
+];
+/* ▼ Apps Script 웹 앱 URL(…/exec)을 따옴표 안에 붙여넣으세요. 비워 두면 코드 방식만 써요. */
+const SHEET_URL='https://script.google.com/macros/s/AKfycbxwKs4N9aDH21UWS4lV4VEIfLNcXdK7iE6bT36uvtgEDdOknpRcEY7dYLoFStbCTEZ7/exec';
+/* ▼ 블라인드 모드: 'on' 항상 켬(경쟁용 추천) · 'off' 항상 끔 · 'choose' 학생이 선택 */
+const BLIND_MODE='on';
+let blind=BLIND_MODE!=='off',log=[];
+const V=(t,k)=>blind&&t.b[k]!=null?t.b[k]:t[k==='s'?'sub':k];
+const BLIND_SUB='25년의 실제 경제사를 투자하며 건너가기. 어떤 시대인지 맞혀 보세요!',REAL_SUB='1997 외환위기부터 2022 금리 인상까지, 실제 역사를 투자하며 건너가기';
+const PRE={safe:[50,30,10,0,5,5],bal:[20,15,20,10,15,20],agg:[0,0,50,40,5,5],zero:[0,0,0,0,0,0]};
+const $=id=>document.getElementById(id);
+const fmt=m=>{m=Math.round(m);const s=m<0?'-':'';m=Math.abs(m);if(m>=10000){const e=Math.floor(m/10000),r=m%10000;return s+e+'억'+(r?' '+r.toLocaleString()+'만':'')+' 원'}return s+m.toLocaleString()+'만 원'};
+const st=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+let turn=0,total=0,alloc=[20,15,20,10,15,20],risk=[],hist=[],bench={dep:0,kospi:0,bal:0};
+let player='',att=1,started=false,local=[];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const HS=s=>{let h=5381;for(const c of s)h=(Math.imul(h,33)^c.codePointAt(0))>>>0;return h};
+const mk=(name,v,a)=>{v=Math.max(0,Math.round(v));a=Math.max(1,Math.min(35,a));const ck=(HS('tm97|'+name.trim()+'|'+v+'|'+a)%1296).toString(36).toUpperCase().padStart(2,'0');return v.toString(36).toUpperCase()+'-'+a.toString(36).toUpperCase()+ck};
+const rd=(name,code)=>{code=code.toUpperCase();const m=/^([0-9A-Z]+)-([0-9A-Z])([0-9A-Z]{2})$/.exec(code);if(!m)return null;const v=parseInt(m[1],36),a=parseInt(m[2],36);return mk(name,v,a)===code?{v,a}:null};
+const bumpAtt=n=>{let a=1;try{a=(+localStorage.getItem('tm97att:'+n)||0)+1;localStorage.setItem('tm97att:'+n,a)}catch(e){}return a};
+try{local=JSON.parse(localStorage.getItem('tm97board')||'[]').filter(e=>e&&typeof e.name==='string'&&typeof e.code==='string')}catch(e){local=[]}
+
+function startTurn(){
+  const t=T[turn];
+  const add=t.inc+(t.ev?t.ev.a:0);
+  total=Math.max(0,total+add);
+  for(const k in bench)bench[k]=Math.max(0,bench[k]+add);
+  if(turn===0)hist=[{y:t.y,v:total,b:bench.dep,k:t.ky}];
+  renderNews();
+  if(started)$('alloc').classList.remove('hide');$('result').classList.add('hide');
+  renderRows();stats();draw();
+}
+function renderNews(){
+  const t=T[turn];
+  const ev=t.ev?`<div class="life"><b>${t.age}세 · 생활 이벤트</b><br>${t.ev.t} 이번 기간 저축 <span class="amt pos">+${fmt(t.inc)}</span>${t.ev.a?` · 지출 <span class="amt neg">${fmt(t.ev.a)}</span>`:''}</div>`:`<div class="life"><b>${t.age}세</b> · 이번 기간 저축 <span class="amt pos">+${fmt(t.inc)}</span></div>`;
+  const n=$('news');n.classList.remove('flip');void n.offsetWidth;n.classList.add('flip');
+  n.innerHTML=`<div class="mast"><b>타임머신 경제신문</b><span>${V(t,'p')}</span></div><span class="extra">호외</span><div class="hl">${V(t,'h')}</div><p>${V(t,'s')}</p>${ev}`;
+}
+function stats(){
+  const t=T[Math.min(turn,T.length-1)];
+  $('sYear').textContent=turn>=T.length?'2022년':blind?'??년':Math.floor(t.y)+'년';
+  $('sAge').textContent=(turn>=T.length?50:t.age)+'세';
+  $('sTotal').textContent=fmt(total);
+  $('sTurn').textContent=Math.min(turn+1,T.length)+' / '+T.length;
+}
+function renderRows(){
+  $('rows').innerHTML=A.map((a,i)=>`<div class="row"><div class="nm"><b>${a.n}</b><span>${a.d}</span></div><div class="stars">수익 <em>${st(a.s[0])}</em><br>안전 <em>${st(a.s[1])}</em><br>유동 <em>${st(a.s[2])}</em></div><input type="range" min="0" max="100" step="5" value="${alloc[i]}" data-i="${i}" aria-label="${a.n} 비율"><div class="v"><b id="pc${i}">${alloc[i]}%</b><span id="am${i}"></span></div></div>`).join('');
+  upd();
+}
+function upd(){
+  const sum=alloc.reduce((a,b)=>a+b,0);
+  A.forEach((a,i)=>{$('pc'+i).textContent=alloc[i]+'%';$('am'+i).textContent=fmt(total*alloc[i]/100)});
+  $('cashV').textContent=(100-sum)+'% · '+fmt(total*(100-sum)/100);
+  const mx=Math.max(...alloc);
+  $('warn').textContent=mx>=80?'💡 한 자산에 80% 이상! 계란을 한 바구니에 담으면 어떻게 될까요?':(100-sum>=50?'💡 현금이 절반 넘게 남아 있어요. 현금은 이자가 붙지 않아요.':'');
+}
+$('rows').addEventListener('input',e=>{
+  const i=+e.target.dataset.i;if(isNaN(i))return;
+  const others=alloc.reduce((a,b,j)=>j===i?a:a+b,0);
+  let v=+e.target.value;if(v+others>100){v=100-others;e.target.value=v}
+  alloc[i]=v;upd();
+});
+document.querySelector('.presets').addEventListener('click',e=>{const p=e.target.dataset.p;if(!p)return;alloc=PRE[p].slice();renderRows()});
+
+$('go').addEventListener('click',()=>{
+  const t=T[turn],before=total;
+  const sum=alloc.reduce((a,b)=>a+b,0);
+  let after=total*(100-sum)/100;
+  const parts=A.map((a,i)=>{const amt=total*alloc[i]/100,nv=amt*(1+t.r[i]/100);after+=nv;return{amt,nv}});
+  total=after;
+  bench.dep*=1+t.r[0]/100;bench.kospi*=1+t.r[2]/100;
+  bench.bal*=A.reduce((s,a,i)=>s+(1+t.r[i]/100)/6,0);
+  risk.push(alloc[2]+alloc[3]);
+  const nx=T[turn+1];
+  hist.push({y:nx?nx.y:2023,v:total,b:bench.dep,k:nx?nx.ky:2236});
+  const ch=total-before,pct=before?ch/before*100:0;
+  log.push(pct);
+  const mxr=Math.max(...t.r.map(Math.abs));
+  $('result').innerHTML=`<h2>결과: ${V(t,'p')}</h2><p class="fact">${blind?'🔒 어느 시대였는지는 게임이 끝나면 공개돼요. 신문 속 단서로 추리해 보세요!':'실제 역사 · '+t.fact}</p>
+   <div class="big ${ch>=0?'pos':'neg'}">${ch>=0?'+':''}${fmt(ch)} (${pct>=0?'+':''}${pct.toFixed(1)}%)</div>
+   <p class="hint">${fmt(before)} → <b>${fmt(total)}</b></p>
+   <div>${A.map((a,i)=>{const r=t.r[i],w=Math.abs(r)/mxr*50;return `<div class="r"><span>${a.n}${alloc[i]?` <small style="color:var(--mute)">(${alloc[i]}%)</small>`:''}</span><div class="bar"><i style="background:${r>=0?'var(--up)':'var(--dn)'};${r>=0?'left:50%':'right:50%'};width:${w}%"></i></div><span class="p ${r>=0?'pos':'neg'}">${r>0?'+':''}${r}%</span></div>`}).join('')}</div>
+   <div class="note"><b>📒 개념 노트 · ${t.c[0]}</b>${blind?t.b.c:t.c[1]}</div>
+   <button class="go" id="next">${turn+1<T.length?'다음 시대로 ▶':'최종 결과 보기 ▶'}</button>`;
+  $('alloc').classList.add('hide');$('result').classList.remove('hide');
+  stats();draw();
+  $('next').addEventListener('click',()=>{turn++;if(turn<T.length)startTurn();else finish();window.scrollTo({top:0,behavior:'smooth'})});
+  $('result').scrollIntoView({behavior:'smooth',block:'start'});
+});
+
+function finish(){
+  $('result').classList.add('hide');$('alloc').classList.add('hide');stats();
+  const avg=risk.reduce((a,b)=>a+b,0)/risk.length;
+  const type=avg>=60?['공격형 투자자','높은 수익을 노리고 주식 비중을 크게 가져갔어요. 위기 때 손실도 컸을 거예요.']:avg>=30?['균형형 투자자','주식과 안전자산을 섞어 위험을 나눴어요.']:['안정형 투자자','원금을 지키는 쪽을 택했어요. 큰 손실은 피했지만 상승장의 기회도 덜 누렸어요.'];
+  const rows=[['나',total],['예금만',bench.dep],['코스피만',bench.kospi],['6개 자산 똑같이',bench.bal]];
+  const mx=Math.max(...rows.map(r=>r[1]));
+  const n=$('news');
+  n.innerHTML=`<div class="mast"><b>타임머신 경제신문</b><span>2022년 12월 · 50세</span></div><span class="extra">특집</span><div class="hl">${esc(player)}님, 25년의 투자 여행 끝! 최종 자산 ${fmt(total)}</div><p>당신은 <b>${type[0]}</b>이었어요. ${type[1]} (주식 평균 비중 ${avg.toFixed(0)}%)</p>`;
+  const code=mk(player,total,att);
+  local.push({name:player,code});
+  try{localStorage.setItem('tm97board',JSON.stringify(local.slice(-200)))}catch(e){}
+  $('end').innerHTML=`<div class="codebox"><small>${esc(player)} · ${att}번째 도전 · 최종 ${fmt(total)}</small><span class="cd" id="myCode">${code}</span><small id="sendSt">${SHEET_URL?'전체 순위에 등록하는 중…':'이 결과 코드를 선생님께 알려 주세요'}</small><div><button id="copyBtn">코드 복사</button></div></div>
+   <h2>${blind?'🔓 정답 공개! 당신이 지나온 25년':'내가 지나온 시대'}</h2><p class="hint">${blind?'사실 이 게임은 1997년부터 2022년까지 한국 경제의 실제 역사였어요. 몇 개나 맞혔나요?':'시대별 내 수익률이에요.'}</p>
+   <div style="margin-bottom:22px">${T.map((t,i)=>`<div class="era"><b>${t.p} · ${t.nm}</b><small>${t.h}<br>${t.fact}</small><span class="p ${log[i]>=0?'pos':'neg'}">${log[i]>=0?'+':''}${(log[i]||0).toFixed(1)}%</span></div>`).join('')}</div>
+   <h2>다른 선택과 비교하면?</h2><p class="hint">같은 돈을 같은 시기에 넣었다고 가정했어요.</p>
+   <div class="cmp">${rows.map(r=>`<div><span>${r[0]}</span><div class="bar"><i style="left:0;width:${r[1]/mx*100}%;background:${r[0]==='나'?'var(--up)':'var(--mute)'}"></i></div><span>${fmt(r[1])}</span></div>`).join('')}</div>
+   <div class="note"><b>📒 정리: 자산 관리의 세 가지 기준</b>수익성(얼마나 불어나나), 안전성(원금을 잃지 않나), 유동성(바로 현금으로 바꿀 수 있나)을 모두 만족하는 자산은 없어요. 그래서 생애 주기와 목적에 맞게 여러 자산에 나누어 담는 것이 중요해요.</div>
+   <h2 style="font-size:20px">생각해 볼 질문</h2>
+   <ol><li>가장 크게 손해 본 시기는 언제였나요? 그때 다른 선택을 했다면 무엇이 달라졌을까요?</li><li>결혼, 집 마련처럼 큰돈이 필요한 시기 직전에는 어떤 자산이 알맞을까요? (유동성·안전성)</li><li>'코스피만'과 '예금만'의 결과 차이는 무엇을 말해 줄까요? 그렇다면 언제나 주식이 정답일까요?</li><li>금리·환율이 내 자산에 영향을 준 장면을 하나 골라 설명해 보세요.</li></ol>
+   <div class="presets"><button class="go" id="again" style="width:auto;flex:1">다시 도전하기 ↺</button><button class="go" id="nextKid" style="width:auto;flex:1">다음 학생 차례 →</button></div>`;
+  $('end').classList.remove('hide');draw();renderBoard();
+  submitScore({name:player,total:Math.round(total),att,code,type:type[0],risk:Math.round(avg)});
+  $('copyBtn').addEventListener('click',e=>{navigator.clipboard.writeText(player+' '+code).then(()=>{e.target.textContent='복사했어요 ✓'},()=>{e.target.textContent='코드를 직접 적어 주세요'})});
+  $('again').addEventListener('click',()=>{att=bumpAtt(player);turn=0;total=0;risk=[];log=[];bench={dep:0,kospi:0,bal:0};alloc=[20,15,20,10,15,20];$('end').classList.add('hide');startTurn();window.scrollTo({top:0,behavior:'smooth'})});
+}
+
+function resetGame(){turn=0;total=0;risk=[];log=[];bench={dep:0,kospi:0,bal:0};alloc=[20,15,20,10,15,20];$('end').classList.add('hide')}
+document.addEventListener('click',e=>{if(e.target.id!=='nextKid')return;resetGame();started=false;player='';$('nm').value='';$('intro').classList.remove('hide');startTurn();window.scrollTo({top:0,behavior:'smooth'});$('nm').focus()});
+function begin(){
+  const v=$('nm').value.trim().replace(/\s+/g,' ');
+  if(v.length<2){$('nmWarn').textContent='이름을 두 글자 이상 입력해 주세요.';return}
+  player=v;att=bumpAtt(player);started=true;$('nmWarn').textContent='';
+  if(BLIND_MODE==='choose'){blind=$('blindChk').checked;$('subT').textContent=blind?BLIND_SUB:REAL_SUB;renderNews();stats();draw()}
+  $('intro').classList.add('hide');$('alloc').classList.remove('hide');$('alloc').scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('startBtn').addEventListener('click',begin);
+$('nm').addEventListener('keydown',e=>{if(e.key==='Enter')begin()});
+
+let pasted=[],bad=[];
+function parseCodes(){
+  pasted=[];bad=[];
+  for(const line of $('codes').value.split('\n')){
+    const s=line.trim();if(!s)continue;
+    const m=/^(.+?)[\s,:\t]+([0-9A-Za-z]+-[0-9A-Za-z]{3})$/.exec(s);
+    if(!m){bad.push(s);continue}
+    const name=m[1].trim().replace(/\s+/g,' '),r=rd(name,m[2]);
+    r?pasted.push({name,code:m[2].toUpperCase()}):bad.push(s);
+  }
+  renderBoard();
+}
+function renderBoard(){
+  const seen=new Set(),best=new Map();
+  for(const e of [...local,...pasted]){
+    const k=e.name+'|'+e.code;if(seen.has(k))continue;seen.add(k);
+    const r=rd(e.name,e.code);if(!r)continue;
+    const cur=best.get(e.name);
+    if(!cur||r.a<cur.a||(r.a===cur.a&&r.v>cur.v))best.set(e.name,{name:e.name,v:r.v,a:r.a,tries:(cur?cur.tries:0)+1});else cur.tries++;
+  }
+  const list=[...best.values()].sort((x,y)=>y.v-x.v);
+  const md=['🥇','🥈','🥉'];
+  $('boardOut').innerHTML=(list.length?`<table><thead><tr><th>순위</th><th>이름</th><th class="n">최종 자산</th><th class="n">인정 기록</th></tr></thead><tbody>${list.map((e,i)=>`<tr class="${i===0?'top1':''}"><td><span class="medal">${md[i]||i+1}</span></td><td>${esc(e.name)}</td><td class="n">${fmt(e.v)}</td><td class="n">${e.a}번째 도전${e.tries>1?` <small style="color:var(--mute)">(기록 ${e.tries}개)</small>`:''}</td></tr>`).join('')}</tbody></table><p class="hint" style="margin-top:8px">한 학생에게 기록이 여러 개면 가장 먼저 한 도전을 인정해요. 결과를 미리 알고 다시 하면 공정하지 않으니까요.</p>`:'<p class="hint">아직 기록이 없어요.</p>')+(bad.length?`<p class="bad">⚠ 확인되지 않은 코드 ${bad.length}개: ${bad.map(esc).join(' · ')} (이름이나 코드를 다시 확인하세요)</p>`:'');
+}
+$('rankBtn').addEventListener('click',parseCodes);
+$('clearBtn').addEventListener('click',()=>{local=[];pasted=[];bad=[];$('codes').value='';try{localStorage.removeItem('tm97board')}catch(e){}renderBoard()});
+renderBoard();
+
+function submitScore(d){
+  if(!SHEET_URL)return;
+  const s=$('sendSt');
+  fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)})
+    .then(r=>r.json()).then(j=>{
+      if(!j.ok)throw new Error(j.error||'fail');
+      s.textContent=j.rank?`전체 순위에 등록됐어요 ✓ 현재 ${j.rank}위`:'전체 순위에 등록됐어요 ✓';
+      loadGlobal();
+    }).catch(()=>{s.textContent='등록하지 못했어요. 이 결과 코드를 선생님께 알려 주세요'});
+}
+let gTimer=null;
+function loadGlobal(){
+  if(!SHEET_URL)return;
+  const o=$('gOut');clearTimeout(gTimer);
+  gTimer=setTimeout(()=>{if(o.dataset.ok!=='1')o.innerHTML='<p class="hint">순위를 아직 불러오지 못했어요. 잠시 뒤 새로고침을 눌러 주세요.</p>'},10000);
+  fetch(SHEET_URL+'?limit=50').then(r=>r.json()).then(j=>{
+    clearTimeout(gTimer);o.dataset.ok='1';
+    const list=(j&&Array.isArray(j.list))?j.list:[];
+    const md=['🥇','🥈','🥉'];
+    o.innerHTML=list.length?`<table><thead><tr><th>순위</th><th>이름</th><th class="n">최종 자산</th><th class="n">인정 기록</th></tr></thead><tbody>${list.map((e,i)=>`<tr class="${i===0?'top1':''}${String(e.name)===player?' me':''}"><td><span class="medal">${md[i]||i+1}</span></td><td>${esc(e.name)}${String(e.name)===player?' <small style="color:var(--up)">(나)</small>':''}</td><td class="n">${fmt(Number(e.v)||0)}</td><td class="n">${esc(Number(e.a)||1)}번째 도전</td></tr>`).join('')}</tbody></table><p class="hint" style="margin-top:8px">참가 ${esc(Number(j.count)||list.length)}명 · 학생마다 첫 도전 기록으로 순위를 매겨요.</p>`:'<p class="hint">아직 등록된 기록이 없어요.</p>';
+  }).catch(()=>{clearTimeout(gTimer);o.innerHTML='<p class="hint">순위를 불러오지 못했어요. 새로고침을 눌러 주세요.</p>'});
+}
+if(SHEET_URL){$('global').classList.remove('hide');$('gRefresh').addEventListener('click',loadGlobal);loadGlobal()}
+
+const svg=$('chart');
+function draw(){
+  const W=svg.clientWidth,H=svg.clientHeight;if(!W||!H)return;
+  const pl=W<420?8:44,pr=W<420?8:40,pt=14,pb=26,x0=1997,x1=2023;
+  const X=y=>pl+(y-x0)/(x1-x0)*(W-pl-pr);
+  const vmax=Math.max(1000,...hist.map(h=>Math.max(h.v,h.b)))*1.08;
+  const Y=v=>pt+(1-v/vmax)*(H-pt-pb);
+  const YK=k=>pt+(1-k/3600)*(H-pt-pb);
+  let g='';
+  for(let i=0;i<=4;i++){const v=vmax/4*i,y=Y(v);g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/>`;if(W>=420)g+=`<text x="${pl-6}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--mute)">${v>=10000?(v/10000).toFixed(1)+'억':Math.round(v/100)*100}</text>`}
+  const hideX=blind&&turn<T.length;
+  if(!hideX)[1997,2000,2005,2010,2015,2020].forEach(y=>{if(W<420&&y%10&&y!==1997)return;g+=`<text x="${X(y)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--mute)">${W<420?"'"+String(y).slice(2):y}</text>`});
+  if(!hideX)[[1997.9,'IMF'],[2000.3,'닷컴'],[2008.8,'리먼'],[2020.2,'코로나']].forEach(([y,l])=>{g+=`<line x1="${X(y)}" x2="${X(y)}" y1="${pt}" y2="${H-pb}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${X(y)+4}" y="${pt+10}" font-size="11" fill="var(--mute)">${l}</text>`});
+  const path=(f,c,w)=>hist.length>1?`<polyline fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" points="${hist.map(h=>X(h.y)+','+f(h)).join(' ')}"/>`:'';
+  g+=path(h=>YK(h.k),'var(--dn)',1.5)+path(h=>Y(h.b),'var(--mute)',2)+path(h=>Y(h.v),'var(--up)',3.5);
+  const L=hist[hist.length-1];
+  if(L)g+=`<circle cx="${X(L.y)}" cy="${Y(L.v)}" r="5" fill="var(--up)"/>`;
+  svg.innerHTML=g;
+}
+const ro=new ResizeObserver(draw);ro.observe(svg);
+if(BLIND_MODE==='choose')$('blindOpt').classList.remove('hide');
+$('subT').textContent=blind?BLIND_SUB:REAL_SUB;
+startTurn();
+}
+</script>
+</body>
+</html>
